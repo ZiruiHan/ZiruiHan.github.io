@@ -1,87 +1,133 @@
 ---
 layout: post
-title: "When Should You Use a Zero-Shot LLM Instead of Fine-Tuning a Smaller Model?"
+title: "Zero-Shot LLM or Fine-Tuning: How Do We Know Before We Spend the Time?"
 date: 2026-04-23
 categories: research nlp llm
 ---
 
-Large language models are making it easier than ever to apply NLP systems to new domains. Need to classify financial text, medical text, or customer support messages? A zero-shot LLM might work right away, with no extra training data.
+Large language models make a tempting promise: take a task, write a prompt, and get useful results immediately.
 
-But there is a catch: zero-shot LLMs are not always the best choice.
+That is powerful, especially when data is scarce. If you suddenly need to classify financial filings, medical notes, or customer-support tickets, a zero-shot LLM can often give you something usable on day one.
 
-Sometimes they are strong enough that you do not need any additional work. Other times, a much smaller model, like BERT or a small language model, can do better after fine-tuning on a relatively small amount of labeled target-domain data. The problem is that we usually do not know which case we are in until after we spend time labeling data and running experiments.
+But there is a practical question hiding underneath that convenience:
 
-That is the motivation behind my research idea.
+> Should we trust the zero-shot LLM, or is it worth collecting labels and fine-tuning a much smaller model instead?
 
-## The core question
+That question matters because labeling data is expensive, fine-tuning takes time, and teams usually do not know which path is better until **after** they have already spent the effort.
 
-I want to build a system that can answer this question:
+## The real decision
 
-**Given a new domain, can we predict whether a zero-shot LLM is enough, or whether it is worth collecting data to fine-tune a smaller model?**
+My research idea is simple to state:
 
-Even more importantly, I want to predict **how much labeled data** is needed before fine-tuning becomes the better option.
+**Given a new domain, can we predict whether a zero-shot LLM is already good enough, or whether a smaller model will become better once we fine-tune it on some labeled data?**
 
-So instead of only asking, “Will performance drop under domain shift?”, I want to ask:
+And there is a second question that is even more useful in practice:
 
-- How much will a zero-shot LLM’s performance drop in the new domain?
-- How many target-domain examples would be needed for a smaller model to catch up?
-- Which strategy is the better choice before we run full experiments?
+**If fine-tuning is worth it, how many labeled examples do we actually need?**
 
-## Why this matters
+That turns the problem from a vague modeling choice into a planning problem.
 
-Today, adaptation to a new domain is often expensive and inefficient. A team might try several approaches:
+Instead of saying:
 
-- use a zero-shot LLM,
-- annotate some data and fine-tune BERT,
-- annotate more data and try a different smaller model,
-- compare results after all that work.
+- "Let's try prompting GPT first."
+- "Now let's label 200 examples and fine-tune BERT."
+- "Maybe 500 labels would work better."
 
-This trial-and-error process costs time, money, and human effort. It would be much better if we could look at the new domain and say:
+we want to say:
 
-> “This shift is small, so a zero-shot LLM will probably be good enough,”
+- "This new domain is close enough to the old one. Zero-shot will probably be sufficient."
+- "This domain shift is large. A smaller model will likely overtake the LLM after roughly a few hundred labeled examples."
 
-or
+That is the kind of answer teams can act on.
 
-> “This shift is large, so you will likely need about 500 labeled examples before a smaller fine-tuned model becomes competitive.”
+## A simple way to think about it
 
-That kind of prediction would help researchers and practitioners make smarter decisions much earlier.
+Imagine you trained a system on movie reviews, but now you need it to work on legal complaints.
 
-## The idea
+A zero-shot LLM might still do reasonably well because it has broad world knowledge and strong language understanding.
 
-My proposed system treats this as a prediction problem.
+But a fine-tuned smaller model might eventually do better because it can learn the exact language, style, and label patterns of that new domain.
 
-First, I would study many known domain shifts across different NLP tasks. For each source-target domain pair, I would measure:
+The problem is that we do not know the crossover point in advance:
 
-- how well zero-shot or few-shot LLMs transfer,
-- how much performance smaller models lose under the shift,
-- and how their performance improves as more target-domain data is used for fine-tuning.
+- Maybe the LLM is already strong enough, so annotation would be wasted effort.
+- Maybe the smaller model becomes better after only 100 labeled examples.
+- Maybe it needs 1,000 examples before it catches up.
 
-Then I would learn patterns from these examples. The goal is to use signals from an **unlabeled new target domain** to predict two things:
+Right now, most teams find out by trial and error.
 
-1. **performance drop** for zero-shot LLMs, and
-2. **label budget** needed for smaller models to recover or exceed that performance.
+My goal is to predict that crossover point *before* running the full adaptation pipeline.
 
-In other words, I want to predict not just whether domain shift hurts, but also **how much adaptation is actually needed**.
+## The core idea
 
-## What makes this different
+The project would treat domain adaptation as something we can **forecast**.
 
-There is already research on zero-shot classification, domain robustness, and out-of-domain performance prediction. But these are usually studied separately.
+Across many source-target domain pairs and NLP tasks, I would measure:
 
-What I want to do is connect them into one practical question:
+- how well a zero-shot or few-shot LLM transfers to the new domain,
+- how much performance smaller models lose when the domain changes,
+- and how quickly those smaller models recover as we add labeled target-domain data.
 
-**How much adaptation effort does this new domain require?**
+From those past examples, the system would learn patterns linking properties of a new, unlabeled target domain to two predictions:
 
-That means the project is not only about evaluating robustness. It is about planning adaptation before spending annotation and training resources.
+1. the expected performance of the zero-shot LLM, and
+2. the label budget needed for a smaller model to match or beat it.
+
+In other words, the system would not just ask, "Will domain shift hurt?" It would ask:
+
+**How much will it hurt, and how much adaptation effort is it worth spending?**
+
+## Why this is useful
+
+This matters because modern NLP deployment is often inefficient.
+
+When a model is moved into a new domain, teams commonly spend time on all of the following:
+
+- testing prompts,
+- collecting labels,
+- fine-tuning multiple smaller models,
+- and comparing everything only at the end.
+
+That workflow is expensive in money, compute, and human labor.
+
+A system that predicts adaptation difficulty ahead of time could help answer practical questions much earlier:
+
+- Is zero-shot good enough for now?
+- Should we invest in annotation?
+- What is the smallest label budget likely to pay off?
+- Which approach is likely to be the best tradeoff between quality and cost?
+
+For researchers, that would offer a new way to study domain shift. For practitioners, it would function like a decision tool.
+
+## What makes the idea different
+
+There is already important work on:
+
+- zero-shot classification,
+- domain robustness,
+- out-of-domain generalization,
+- and performance prediction under distribution shift.
+
+But these are often treated as separate problems.
+
+What I want to connect is the decision that real teams actually face:
+
+> When should we stop relying on zero-shot transfer and start paying for adaptation?
+
+That framing moves the conversation from pure evaluation to **resource-aware model selection**.
 
 ## The bigger picture
 
-If this works, it could help turn domain adaptation from a costly trial-and-error process into a more principled decision.
+If this idea works, it could make NLP adaptation much more deliberate.
 
-Instead of asking:
-- “Should we try zero-shot LLMs?”
-- “Should we fine-tune BERT?”
-- “How many labels should we collect?”
+Instead of learning through expensive trial and error, we could estimate in advance whether a new domain is:
 
-we could answer those questions with a predictive model grounded in past domain shifts.
+- easy enough for zero-shot prompting,
+- difficult enough to justify fine-tuning,
+- or somewhere in between, where a specific label budget is the key variable.
 
-My hope is that this research can make NLP deployment more efficient, more interpretable, and more practical, especially in settings where labeling data is expensive and domain shift is unavoidable.
+That would make deployment faster, cheaper, and easier to justify.
+
+At a broader level, I find this exciting because it treats domain adaptation not just as a modeling problem, but as a decision problem under limited time, money, and data.
+
+And in real-world NLP, that is usually the problem that matters most.
